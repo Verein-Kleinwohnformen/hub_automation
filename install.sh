@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script is intended to be run on a Raspberry Pi running Raspbian
+# This script is intended to be run on a EdgeBox-RPI-200 running Raspbian
 # It will install the E-Monitor software and configure the system
 # It will also update the system and upgrade it to the latest version of Raspbian
 echo -e "Starting the E-Monitor installation script.\nThis script will install E-Monitor, update the system, upgrade to the latest Raspbian, and perform multiple reboots.\nPlease be patient as the script continues to run after each reboot until completion."
@@ -93,17 +93,22 @@ if [ ! -f $HARDWARE_MARKER ]; then
     # Activate RTC
     echo "dtoverlay=i2c-rtc,pcf8563" | sudo tee -a /boot/config.txt
 
-    # Activate GPIO for LTE
-    sudo -i
-    cd /sys/class/gpio
-    echo 6 > export
-    echo 5 > export
-    cd gpio6
-    echo out > direction
-    echo 1 > value
-    cd gpio5
-    echo out > direction
-    echo 1 > value
+    # Export GPIO pins 6 and 5
+    echo 6 | sudo tee /sys/class/gpio/export > /dev/null
+    echo 5 | sudo tee /sys/class/gpio/export > /dev/null
+
+    # Set GPIO 6 as output
+    echo out | sudo tee /sys/class/gpio/gpio6/direction > /dev/null
+
+    # Set the value of GPIO 6 to 1
+    echo 1 | sudo tee /sys/class/gpio/gpio6/value > /dev/null
+
+    # Set GPIO 5 as output
+    echo out | sudo tee /sys/class/gpio/gpio5/direction > /dev/null
+
+    # Set the value of GPIO 5 to 1
+    echo 1 | sudo tee /sys/class/gpio/gpio5/value > /dev/null
+
     # Create the hardware marker file
     sudo touch $HARDWARE_MARKER
 
@@ -180,28 +185,6 @@ else
     echo "The Packages has been configured and the system rebooted."
 fi
 
-SSD_MARKER=/usr/local/pi/ssd.marker
-
-# Check if the SSD marker file exists
-if [ ! $SSD_MARKER ]; then
-    # The file does not exist, so we'll do the SSD setup
-
-    # Change Bootorder to nvme
-
-    # Create the SSD marker file
-    sudo touch $SSD_MARKER
-
-    # Copy entire system to nvme
-
-    # Reboot the system
-    sudo reboot
-else
-    # The file exists, so the SSD setup has already been done
-
-    # Continue with the rest of the script
-    echo "The SSD has been configured and the system bootet on SSD."
-fi
-
 CRONETAB_MARKER=/usr/local/pi/crontab.marker
 
 # Check if the crontab marker file exists
@@ -244,6 +227,28 @@ else
 
     # Continue with the rest of the script
     echo "The crontab has been configured and the system rebooted."
+fi
+
+SSD_MARKER=/usr/local/pi/ssd.marker
+
+# Check if the SSD marker file exists
+if [ ! $SSD_MARKER ]; then
+    # The file does not exist, so we'll do the SSD setup
+
+    # Change Bootorder to nvme
+
+    # Create the SSD marker file
+    sudo touch $SSD_MARKER
+
+    # Copy entire system to nvme
+
+    # Reboot the system
+    sudo reboot
+else
+    # The file exists, so the SSD setup has already been done
+
+    # Continue with the rest of the script
+    echo "The SSD has been configured and the system bootet on SSD."
 fi
 
 # End of the script

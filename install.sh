@@ -141,7 +141,8 @@ if [ ! -f $PACKAGE_MARKER ]; then
     sudo apt install -yqq pigpiod python3-pigpio python3-pigpio
 
     # Install packages for LTE Module
-    sudo apt install -yqq ppp usb-modeswitch
+	sudo apt install minicom -y
+    sudo apt install expect -y
 
     # Install packages for Wifi AP Mode
     sudo apt install -yqq hostapd dnsmasq
@@ -165,13 +166,69 @@ if [ ! $CONFIGURATION_MARKER ]; then
     # The file does not exist, so we'll do the configuration
 
     # Configure the system
-    # Configure LTE
+    # Configure LTE for Quectel EC25-E
+    cat <<EOF > minicom_script.exp
+    #!/usr/bin/expect
+
+    spawn minicom -D /dev/ttyUSB3 -b 115200
+
+    expect "Welcome to minicom"
+
+    send "AT\r"
+    expect {
+    "OK" { puts "AT - Response: OK" }
+    timeout { puts "AT - Response: Timeout" }
+    }
+
+    send "AT+QCFG=\"usbnet\",1\r"
+    expect {
+    "OK" { puts "AT+QCFG=\"usbnet\",1 - Response: OK" }
+    timeout { puts "AT+QCFG=\"usbnet\",1 - Response: Timeout" }
+    }
+
+    send "AT+CGDCONT=1,\"IP\",\"dr.m2m.ch\"\r"
+    expect {
+    "OK" { puts "AT+CGDCONT=1,\"IP\",\"dr.m2m.ch\" - Response: OK" }
+    timeout { puts "AT+CGDCONT=1,\"IP\",\"dr.m2m.ch\" - Response: Timeout" }
+    }
+
+    send "AT+CFUN=1,1\r"
+    expect {
+    "OK" { puts "AT+CFUN=1,1 - Response: OK" }
+    timeout { puts "AT+CFUN=1,1 - Response: Timeout" }
+    }
+
+    interact
+EOF
+
+	expect minicom_script.exp
+
+    # Configure Interface for lte0
+    vendor_id=$(lsusb | grep "Quectel EC25" | awk '{print $6}' | cut -d ":" -f 1)
+    product_id=$(lsusb | grep "Quectel EC25" | awk '{print $6}' | cut -d ":" -f 2)
+
+    if [[ -z $vendor_id ]] || [[ -z $product_id ]]; then
+    echo "Failed to find the vendor and product IDs of the Quectel EC25 modem."
+    exit 1
+    fi
+
+    sudo tee /etc/udev/rules.d/10-quectel-interface.rules > /dev/null << EOF
+    SUBSYSTEM=="net", ACTION=="add", ATTRS{idVendor}=="$vendor_id", ATTRS{idProduct}=="$product_id", NAME="myinterface"
+EOF
+
+    sudo udevadm control --reload-rules
 
     # Configure Wifi AP Mode
 
     # Configure GPIO to docker
 
     # Configure IoT Edge 1.4
+	echo '{
+		"log-driver": "local",
+		"dns": ["8.8.8.8"]
+	}' | sudo tee /etc/docker/daemon.json > /dev/null
+
+	systemctl restart docker 
 
     # Create the configuration marker file
     sudo touch $CONFIGURATION_MARKER
@@ -236,16 +293,46 @@ if [ ! $SSD_MARKER ]; then
     # The file does not exist, so we'll do the SSD setup
 
     # Change Bootorder to nvme
-
+	sudo apt install git libusb-1.0-0-dev build-essential -y
+	git clone --depth=1 https://github.com/raspberrypi/usbboot
+	cd usbboot
+	make
+	cd usbboot/recovery
+	#download the latest stable firmware & update
+	curl -L -o pieeprom.original.bin https://github.com/raspberrypi/rpi-eeprom/raw/master/firmware/stable/pieeprom-2022-05-11.bin
+	./update-pieeprom.sh
+	sudo sed -i 's/BOOT_ORDER=0xf25641/BOOT_ORDER=0xf25416/' boot.conf
+    ./update-pieeprom.sh
+	
     # Create the SSD marker file
     sudo touch $SSD_MARKER
 
     # Copy entire system to nvme
+	sudo dd if=/dev/mmcblk0 of=/dev/nvme0n1 bs=4MB status=progress
 
     # Reboot the system
     sudo reboot
+	
+	# Resize the partition
+    sudo parted /dev/nvme0n1 resizepart 2 100%
+
+    # Resize the filesystem
+    sudo resize2fs /dev/nvme0n1p2
+	
+	# Reboot the system
+	sudo reboot
 else
     # The file exists, so the SSD setup has already been done
+	# Check if booted from SSD or EEPROM
+	device=$(lsblk -no pkname /dev/nvme0n1p1)  # Assuming the root partition is on /dev/nvme0n1p1
+
+	if [[ $device == "nvme0n1" ]]; then
+		echo "Booted from SSD"
+	elif [[ $device == "mmcblk0" ]]; then
+		echo "Booted from EEPROM"
+	else
+		echo "Unknown boot device"
+	fi
 
     # Continue with the rest of the script
     echo "The SSD has been configured and the system bootet on SSD."

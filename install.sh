@@ -57,6 +57,7 @@ else
 
     #Continue with the rest of the script
     echo "The system has been setup for start and the system rebooted."
+fi
 
 UPGRADE_MARKER=/usr/local/pi/upgrade.marker
 
@@ -64,20 +65,25 @@ UPGRADE_MARKER=/usr/local/pi/upgrade.marker
 if [ ! -f $UPGRADE_MARKER ]; then
   # The file does not exist, so we'll do the upgrade
 
-  # Switch the OS sources from 'buster' to 'bullseye'
-  sudo sed -i 's/buster/bullseye/g' /etc/apt/sources.list
-  sudo sed -i 's/buster/bullseye/g' /etc/apt/sources.list.d/raspi.list
+        # Check if Bullseye is already installed
+    if grep -q "bullseye" /etc/os-release; then
+        echo "Bullseye is already installed. Skipping the upgrade process."
+    else
+        # Switch the OS sources from 'buster' to 'bullseye'
+        sudo sed -i 's/buster/bullseye/g' /etc/apt/sources.list
+        sudo sed -i 's/buster/bullseye/g' /etc/apt/sources.list.d/raspi.list
 
-  # Update and upgrade the system
-  sudo apt-get update -yqq
-  sudo apt-get upgrade -yqq
-  sudo apt-get dist-upgrade -yqq
+        # Update and upgrade the system
+        sudo apt-get update -yqq
+        sudo apt-get upgrade -yqq
+        sudo apt-get dist-upgrade -yqq
 
-  # Create the upgrade marker file
-  sudo touch $UPGRADE_MARKER
+        # Create the upgrade marker file
+        sudo touch $UPGRADE_MARKER
 
-  # Reboot the system
-  sudo reboot
+        # Reboot the system
+        sudo reboot
+    fi
 else
   # The file exists, so the upgrade has already been done
 
@@ -146,7 +152,11 @@ if [ ! -f $PACKAGE_MARKER ]; then
 
     # Install packages for Wifi AP Mode
     sudo apt install -yqq hostapd dnsmasq
-    
+    echo "Setting the WiFi country code to Switzerland (CH)..."
+    echo 'country=CH' | sudo tee -a /etc/wpa_supplicant/wpa_supplicant.conf > /dev/null
+    echo "Invoking RaspAP's Quick Installer..."
+    curl -sL https://install.raspap.com/ | bash
+
     # Create the hardware marker file
     sudo touch $PACKAGE_MARKER
 
@@ -217,10 +227,6 @@ EOF
 EOF
 
     sudo udevadm control --reload-rules
-
-    # Configure Wifi AP Mode
-
-    # Configure GPIO to docker
 
     # Configure IoT Edge 1.4
 	echo '{

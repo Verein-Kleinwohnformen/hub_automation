@@ -214,9 +214,11 @@ EOF
 	expect minicom_script.exp
 
     # Configure Interface for lte0
+	# Configure Interface for lte0
 	vendor_id_product_id=$(lsusb | grep "Quectel" | awk '{print $6}')
-	vendor_id=$(echo $vendor_id_product_id | cut -d ":" -f 1)
-	product_id=$(echo $vendor_id_product_id | cut -d ":" -f 2)
+	vendor_id=$(echo $vendor_id_product_id | awk -F':' '{print $1}')
+	product_id=$(echo $vendor_id_product_id | awk -F':' '{print $2}')
+
 
 
     if [[ -z $vendor_id ]] || [[ -z $product_id ]]; then

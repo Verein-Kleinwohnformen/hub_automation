@@ -214,7 +214,7 @@ EOF
 	expect minicom_script.exp
 
     # Configure Interface for lte0
-	vendor_id_product_id=$(lsusb | grep "Quectel Wireless Solutions Co., Ltd. EC25 LTE modem" | awk '{print $6}')
+	vendor_id_product_id=$(lsusb | grep "Quectel" | awk '{print $6}')
 	vendor_id=$(echo $vendor_id_product_id | cut -d ":" -f 1)
 	product_id=$(echo $vendor_id_product_id | cut -d ":" -f 2)
 

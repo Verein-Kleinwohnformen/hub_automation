@@ -258,13 +258,15 @@ CRONETAB_MARKER=/usr/local/pi/crontab.marker
 if [ ! $CRONETAB_MARKER ]; then
     # The file does not exist, so we'll do the crontab setup
 
-    # Definieren Sie den Pfad, unter dem das Update-Skript erstellt werden soll.
-    UPDATE_SCRIPT_PATH="/usr/local/pi/crone/"
-    UPDATE_SCRIPT_FILE=$UPDATE_SCRIPT_PATH + "update.sh"
+	# The file does not exist, so we'll do the crontab setup
 
-    # Erstellen Sie das Verzeichnis, in dem das Update-Skript gespeichert werden soll.
-    mkdir -p $(dirname $UPDATE_SCRIPT_PATH)
-    
+	# Define the path where the update script should be created
+	UPDATE_SCRIPT_PATH="/usr/local/pi/crone/"
+	UPDATE_SCRIPT_FILE="${UPDATE_SCRIPT_PATH}update.sh"
+
+	# Create the directory where the update script should be stored
+	mkdir -p $(dirname $UPDATE_SCRIPT_FILE)
+
     # Erstelle das Update-Skript und schreibe den Inhalt hinein.
     cat << EOF > $UPDATE_SCRIPT_FILE
     #!/bin/bash
@@ -301,7 +303,7 @@ SSD_MARKER=/usr/local/pi/ssd.marker
 # Check if the SSD marker file exists
 if [ ! $SSD_MARKER ]; then
     # The file does not exist, so we'll do the SSD setup
-
+	echo "moin"
     # Change Bootorder to nvme
 	sudo apt install git libusb-1.0-0-dev build-essential -y
 	git clone --depth=1 https://github.com/raspberrypi/usbboot
